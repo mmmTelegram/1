@@ -16,7 +16,7 @@ local _M =
 	telegram =
 	{
 		token = assert(read_secret('telegram/token') or os.getenv('TG_TOKEN'),
-			'You must export $TG_TOKEN with your Telegram Bot API token'),
+			'You must export $TG_TOKEN with your Telegram Bot API token'):gsub("%s+", ""),
 		allowed_updates = os.getenv('TG_UPDATES') or {'message', 'edited_message', 'callback_query'},
 		polling =
 		{
@@ -49,9 +49,9 @@ local _M =
 
 	-- Aesthetic
 	lang = os.getenv('DEFAULT_LANG') or 'en',
-	human_readable_version = os.getenv('VERSION') or 'unknown',
-	channel = os.getenv('CHANNEL') or '@groupbutler_beta',
-	source_code = os.getenv('SOURCE') or 'https://github.com/RememberTheAir/GroupButler/tree/beta',
+	commit = os.getenv("GB_COMMIT"),
+	channel = os.getenv("GB_CHANNEL") or '@GroupButler_ch',
+	source_code = os.getenv("GB_SOURCE") or 'https://github.com/group-butler/GroupButler',
 	help_group = os.getenv('HELP_GROUP') or 'telegram.me/GBgroups',
 
 	-- Core
@@ -65,8 +65,9 @@ local _M =
 		'You must export $SUPERADMINS with a JSON array containing at least your Telegram ID'),
 	cmd = '^[/!#]',
 	bot_settings = {
+		old_update = tonumber(os.getenv("GB_OLD_UPDATE")) or 7, -- Age in seconds for updates to be skipped
 		cache_time = {
-			adminlist = 18000, --5 hours (18000s) Admin Cache time, in seconds.
+			adminlist = tonumber(os.getenv("GB_CACHE_ADMIN")) or 18000, -- 5 hours (18000s) Admin Cache time, in seconds.
 			alert_help = 72,  -- amount of hours for cache help alerts
 			chat_titles = 18000
 		},
@@ -108,22 +109,44 @@ local _M =
 		'admin',
 		'extra', --must be the last plugin in the list.
 	},
-	available_languages = {
+	available_languages = { -- Sorted alphabetically
 		['en'] = 'English 🇬🇧',
-		['it'] = 'Italiano 🇮🇹',
-		['es'] = 'Español 🇪🇸',
-		['pt_BR'] = 'Português 🇧🇷',
-		['ru'] = 'Русский 🇷🇺',
-		['de'] = 'Deutsch 🇩🇪',
-		--['sv'] = 'Svensk 🇸🇪',
-		['ar'] = 'العربية 🇸🇩',
-		--['fr'] = 'Français 🇫🇷',
-		['zh'] = '中文 🇨🇳',
-		['fa'] = 'فارسی 🇮🇷',
-		['id'] = 'Bahasa Indonesia 🇮🇩',
-		['nl'] = 'Nederlands 🇱🇺',
-		['tr'] = 'Turkish 🇹🇷'
-		-- more languages will come
+		-- ['af_ZA'] = 'Afrikaans 🇿🇦',
+		['ar_SA'] = 'Arabic 🇸🇩',
+		-- ['ca_ES'] = 'Catalan', -- Missing emoji flag as of 16/07/2018
+		['zh_CN'] = 'Chinese Simplified 🇨🇳',
+		['zh_TW'] = 'Chinese Traditional 🇹🇼',
+		-- ['cs_CZ'] = 'Czech 🇨🇿',
+		-- ['da_DK'] = 'Danish 🇩🇰',
+		-- ['nl_NL'] = 'Dutch 🇱🇺',
+		-- ['fil_PH'] = 'Filipino 🇵🇭',
+		-- ['fi_FI'] = 'Finnish 🇫🇮',
+		-- ['fr_FR'] = 'French 🇫🇷',
+		['de_DE'] = 'German 🇩🇪',
+		-- ['el_GR'] = 'Greek 🇬🇷',
+		-- ['he_IL'] = 'Hebrew 🇮🇱',
+		-- ['hu_HU'] = 'Hungarian 🇭🇺',
+		['id_ID'] = 'Indonesian 🇮🇩',
+		['it_IT'] = 'Italian 🇮🇹',
+		-- ['ja_JP'] = 'Japanese 🇯🇵',
+		-- ['ko_KR'] = 'Korean 🇰🇷',
+		-- ['ml_IN'] = 'Malayalam 🇮🇳',
+		-- ['no_NO'] = 'Norwegian 🇳🇴',
+		['fa_IR'] = 'Persian 🇮🇷',
+		['pl_PL'] = 'Polish 🇵🇱',
+		['pt_PT'] = 'Portuguese 🇵🇹',
+		['pt_BR'] = 'Portuguese, Brazilian 🇧🇷',
+		['ro_RO'] = 'Romanian 🇷🇴',
+		['ru_RU'] = 'Russain 🇷🇺',
+		-- ['sr_SP'] = 'Serbian (Cyrillic) 🇷🇸',
+		['es_ES'] = 'Spanish 🇪🇸',
+		['es_MX'] = 'Spanish, Mexico 🇲🇽',
+		-- ['sv_SE'] = 'Swedish 🇸🇪',
+		['tr_TR'] = 'Turkish 🇹🇷',
+		-- ['uk_UA'] = 'Ukrainian 🇺🇦',
+		['ur_IN'] = 'Urdu (India) 🇮🇳',
+		-- ['vi_VN'] = 'Vietnamese 🇻🇳',
+		-- languages become available once they reach a reasonable progress at Crowdin
 	},
 	allow_fuzzy_translations = false,
 	chat_settings = {
@@ -221,7 +244,7 @@ local _M =
 	},
 	chat_hashes = {'extra', 'info', 'links', 'warns', 'mediawarn', 'spamwarns', 'blocked', 'report', 'defpermissions',
 		'defpermduration'},
-	chat_sets = {'whitelist'},--, 'mods'},
+	chat_sets = {'whitelist'},
 	bot_keys = {
 		d3 = {'bot:general', 'bot:usernames', 'bot:chat:latsmsg'},
 		d2 = {'bot:groupsid', 'bot:groupsid:removed', 'tempbanned', 'bot:blocked', 'remolden_chats'} --remolden_chats: chat removed with $remold command

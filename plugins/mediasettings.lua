@@ -52,6 +52,8 @@ local function doKeyboard_media(chat_id)
 	local caption
 	if action == 'kick' then
 		caption = i18n("Warnings | %d | kick"):format(tonumber(max))
+	elseif action == 'mute' then
+		caption = i18n("Warnings | %d | mute"):format(tonumber(max))
 	else
 		caption = i18n("Warnings | %d | ban"):format(tonumber(max))
 	end
@@ -94,12 +96,12 @@ function plugin.onCallbackQuery(msg, blocks)
 		api.answerCallbackQuery(msg.cb_id, i18n("You're no longer an admin"))
 	else
 		local media_first = i18n([[
-Tap on a voice in the right to *change the setting*
-You can use the last lines to change how many warnings should the bot give before kicking/banning/muting someone.
+Tap on an option on the right to *change the setting*
+You can use the last lines to change how many warnings the bot should give before kicking/banning/muting someone.
 The number is not related the the normal `/warn` command.
 
-Medias possible statuses: ✅ allowed, ❌ warning, 🗑 delete.
-When a media is set on delete, the bot will give a warning *only* when the user is at one media from being punished
+Possible statuses: ✅ allowed, ❌ warning, 🗑 delete.
+When a media is set to delete, the bot will give a warning *only* when this is the users last warning
 ]])
 
 		if blocks[1] == 'config' then

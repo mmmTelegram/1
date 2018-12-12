@@ -128,12 +128,13 @@ function plugin.onTextMessage(msg, blocks)
 	end
 	if blocks[1] == 'stats' then
 		local text = '#stats `['..u.get_date()..']`:\n'
-		local hash = 'bot:general'
+		local hash = 'bot:general'  -- Todo: update this for the new metrics
 		local names = db:hkeys(hash)
 		local num = db:hvals(hash)
 		for i=1, #names do
 			text = text..'- *'..names[i]..'*: `'..num[i]..'`\n'
 		end
+		text = text..'- *total msg*: '..(u.metric_get("messages_count") or "No Data")..' \n'
 		text = text..'- *uptime*: `from '..(os.date("%c", bot.start_timestamp))..' (GMT+2)`\n'
 		text = text..'- *last hour msgs*: `'..bot.last.h..'`\n'
 		text = text..'   • *average msgs/minute*: `'..round((bot.last.h/60), 3)..'`\n'
@@ -169,7 +170,7 @@ function plugin.onTextMessage(msg, blocks)
 		else
 			output = '```\n'..output..'\n```'
 		end
-		api.sendMessage(msg.chat.id, output, true, msg.message_id, true)
+		api.sendReply(msg, output, true)
 	end
 	if blocks[1] == 'block' then
 		local id
@@ -271,8 +272,6 @@ function plugin.onTextMessage(msg, blocks)
 
 		local log_channel = db:hget('bot:chatlogs', chat_id)
 		if log_channel then text = text..'\nLog channel: '..log_channel end
-		local realm = db:hget('chat:'..chat_id..':realm', chat_id)
-		if realm then text = text..'\nRealm: '..realm end
 
 		text = text..'</code>'
 

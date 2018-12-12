@@ -45,13 +45,11 @@ local function get_alert_text(key)
 	if key == 'can_send_messages' then
 		return i18n("Permission to send messages. If disabled, the user won't be able to send any kind of message")
 	elseif key == 'can_send_media_messages' then
-		return i18n(
-			[[Permission to send media (audios, documents, photos, videos, video notes and voice notes). Implies the permission to send messages
-			]])
+		return i18n([[Permission to send media (audios, documents, photos, videos, video notes and voice notes). Implies the permission to send messages
+]])
 	elseif key == 'can_send_other_messages' then
-		return i18n(
-			[[Permission to send other types of messages (GIFs, games, stickers and use inline bots). Implies the permission to send medias
-			]])
+		return i18n([[Permission to send other types of messages (GIFs, games, stickers and use inline bots). Implies the permission to send medias
+]])
 	elseif key == 'can_add_web_page_previews' then
 		return i18n("When disabled, user's messages with a link won't show the web page preview")
 	else
@@ -111,7 +109,7 @@ function plugin.onCallbackQuery(msg, blocks)
 		if not u.can(chat_id, msg.from.id, 'can_restrict_members') then
 			api.answerCallbackQuery(msg.cb_id, i18n("You don't have the permission to restrict members"))
 		else
-			local msg_text = i18n([[*Deafult permissions*
+			local msg_text = i18n([[*Default permissions*
 From this menu you can change the default permissions that will be granted when a new member join.
 _Only the administrators with the permission to restrict a member can access this menu._
 Tap on the name of a permission for a description of what kind of messages it will influence.

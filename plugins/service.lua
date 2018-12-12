@@ -1,7 +1,6 @@
 local config = require 'config'
 local u = require 'utilities'
 local api = require 'methods'
-local db = require 'database'
 local locale = require 'languages'
 local i18n = locale.translate
 
@@ -52,7 +51,7 @@ function plugin.onTextMessage(msg, blocks)
 			else
 				text = text .. i18n("Hmm… apparently I'm not an administrator. "
 					.. "I can be more useful if I'm an admin. Ask a creator to make me an admin. "
-					.. "If he doesn't know how, there is a good [guide](https://telegram.me/GroupButler_ch/104).\n")
+					.. "If they don't know how, there is a good [guide](https://telegram.me/GroupButler_ch/104).\n")
 			end
 		end
 		text = text .. i18n("I can do a lot of cool things. To discover about them, "
@@ -60,16 +59,6 @@ function plugin.onTextMessage(msg, blocks)
 			.. "watch this [video-tutorial](https://youtu.be/uqNumbcUyzs).") ]]
 		api.sendMessage(msg.chat.id, text, true)
 	elseif blocks[1] == 'left_chat_member:bot' then
-
-		local realm_id = db:get('chat:'..msg.chat.id..':realm')
-		if realm_id then
-			if db:hget('realm:'..realm_id..':subgroups', msg.chat.id) then
-				api.sendMessage(realm_id, i18n(
-					"I've been removed from %s [<code>%d</code>], one of your subgroups"
-					):format(msg.chat.title:escape_html(), msg.chat.id), 'html')
-			end
-		end
-
 		u.remGroup(msg.chat.id, true)
 	else
 		u.logEvent(blocks[1], msg)

@@ -18,15 +18,13 @@ local function get_button_description(key)
 	elseif key == 'Weldelchain' then
 		return i18n("When enabled, every time a new welcome message is sent, the previously sent welcome message is removed")
 	elseif key == 'Silent' then
-		return i18n(
-			[[When enabled, the bot doesn't answer in the group to /dashboard, /config and /help commands (it will just answer in private)
-			]])
+		return i18n([[When enabled, the bot doesn't answer in the group to /dashboard, /config and /help commands (it will just answer in private)
+]])
 	elseif key == 'Flood' then
 		return i18n("Enable and disable the anti-flood system (more info in the /help message)")
 	elseif key == 'Welbut' then
-		return i18n(
-			[[If the welcome message is enabled, it will include an inline button that will send to the user the rules in private
-			]])
+		return i18n([[If the welcome message is enabled, it will include an inline button that will send to the user the rules in private
+]])
 	elseif key == 'Rules' then
 		return i18n([[When someone uses /rules
 👥: the bot will answer in the group (always, with admins)
@@ -41,7 +39,7 @@ local function get_button_description(key)
 		return i18n("Bots will be banned when added by normal users")
 	elseif key == 'Rtl' then
 		return i18n(
-			"Select what the bot should do when someone sends a message with the RTL character, or has it in his name")
+			"Select what the bot should do when someone sends a message with the RTL character, or has it in their name")
 	elseif key == 'warnsnum' then
 		return i18n("Change how many times an user has to be warned before being kicked/banned")
 	elseif key == 'warnsact' then

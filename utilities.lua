@@ -5,6 +5,7 @@ local ltn12 = require 'ltn12'
 local HTTPS = require 'ssl.https'
 local db = require 'database'
 local locale = require 'languages'
+local socket = require 'socket'
 local i18n = locale.translate
 
 local utilities = {} -- Functions shared among plugins
@@ -16,7 +17,7 @@ local utilities = {} -- Functions shared among plugins
 function string:escape(only_markup)
 	if not only_markup then
 		-- insert word joiner
-		self = self:gsub('([@#/.])(%w)', '%1\xE2\x81\xA0%2')
+		self = self:gsub('([@#/.])(%w)', '%1\226\129\160%2')
 	end
 	return self:gsub('[*_`[]', '\\%0')
 end
@@ -121,10 +122,6 @@ function utilities.can(chat_id, user_id, permission)
 	end
 
 	return db:sismember(set, permission)
-end
-
-function utilities.is_mod(chat_id, user_id)
-	return utilities.is_admin(chat_id, user_id)
 end
 
 function utilities.is_superadmin(user_id)
@@ -233,6 +230,7 @@ end
 
 function utilities.cache_adminlist(chat_id)
 	print('Saving the adminlist for:', chat_id)
+	utilities.metric_incr("api_getchatadministrators_count")
 	local res, code = api.getChatAdministrators(chat_id)
 	if not res then
 		return false, code
@@ -256,7 +254,6 @@ function utilities.cache_adminlist(chat_id)
 
 		db:sadd(set, admin.user.id)
 
-		utilities.demote(chat_id, admin.user.id)
 	end
 	db:expire(set, cache_time)
 
@@ -353,11 +350,11 @@ function utilities.resolve_user(username)
 		if not user_obj.result.username then return stored_id end
 	end
 
-	-- User could change his username
+	-- Users could change their username
 	if username ~= '@' .. user_obj.result.username:lower() then
 		if user_obj.result.username then
 			-- Update it if it exists
-			db:hset('bot:usernames', user_obj.result.username:lower(), user_obj.result.id)
+			db:hset('bot:usernames', '@'..user_obj.result.username:lower(), user_obj.result.id)
 		end
 		-- And return false because this user not the same that asked
 		return false
@@ -405,15 +402,6 @@ function utilities.reply_markup_from_text(text)
 	if not next(reply_markup.inline_keyboard) then reply_markup = nil end
 
 	return reply_markup, clean_text
-end
-
-function utilities.demote(chat_id, user_id)
-	chat_id, user_id = tonumber(chat_id), tonumber(user_id)
-
-	db:del(('chat:%d:mod:%d'):format(chat_id, user_id))
-	local removed = db:srem('chat:'..chat_id..':mods', user_id)
-
-	return removed == 1
 end
 
 function utilities.get_media_type(msg)
@@ -513,14 +501,12 @@ end
 
 -- Return user mention for output a text
 function utilities.getname_final(user)
-	return utilities.getname_link(user.first_name, user.username) or '<code>'..user.first_name:escape_html()..'</code>'
+	return utilities.getname_link(user) or '<code>'..user.first_name:escape_html()..'</code>'
 end
 
--- Return link to user profile or false, if he doesn't have login
-function utilities.getname_link(name, username)
-	if not name or not username then return nil end
-	username = username:gsub('@', '')
-	return ('<a href="%s">%s</a>'):format('https://telegram.me/'..username, name:escape_html())
+-- Return link to user profile or false, if they don't have login
+function utilities.getname_link(user)
+	return ('<a href="%s">%s</a>'):format('tg://user?id='..user.id, user.first_name:escape_html())
 end
 
 function utilities.bash(str)
@@ -566,7 +552,7 @@ function utilities.getAdminlist(chat_id)
 	for _, admin in pairs(list.result) do
 		local name
 		local s = ' ├ '
-		if admin.status == 'administrator' or admin.status == 'moderator' then
+		if admin.status == 'administrator' then
 			name = admin.user.first_name
 			if admin.user.username then
 				name = ('<a href="telegram.me/%s">%s</a>'):format(admin.user.username, name:escape_html())
@@ -621,6 +607,7 @@ function utilities.getSettings(chat_id)
 		Arab = i18n("Arab"),
 		Rtl = i18n("RTL"),
 		Reports = i18n("Reports"),
+		Weldelchain = i18n("Delete last welcome message"),
 		Welbut = i18n("Welcome button")
 	}
 	for key, default in pairs(config.chat_settings['settings']) do
@@ -630,8 +617,7 @@ function utilities.getSettings(chat_id)
 			off_icon, on_icon = '👤', '👥'
 		end
 
-		local db_val = db:hget(hash, key)
-		if not db_val then db_val = default end
+		local db_val = db:hget(hash, key) or default
 
 		if db_val == 'off' then
 			message = message .. string.format('%s: %s\n', strings[key], off_icon)
@@ -682,7 +668,7 @@ function utilities.changeSettingStatus(chat_id, field)
 		reports = i18n("@admin command disabled"),
 		welcome = i18n("Welcome message won't be displayed from now"),
 		goodbye = i18n("Goodbye message won't be displayed from now"),
-		extra = i18n("#extra commands are now available only for moderator"),
+		extra = i18n("#extra commands are now available only for administrators"),
 		flood = i18n("Anti-flood is now off"),
 		rules = i18n("/rules will reply in private (for users)"),
 		silent = i18n("Silent mode is now off"),
@@ -741,18 +727,6 @@ function utilities.initGroup(chat_id)
 	db:srem('bot:groupsid:removed', chat_id)
 end
 
-local function empty_modlist(chat_id)
-	local set = 'chat:'..chat_id..':mods'
-	local mods = db:smembers(set)
-	if next(mods) then
-		for i=1, #mods do
-			db:del(('chat:%d:mod:%d'):format(tonumber(chat_id), tonumber(mods[i])))
-		end
-	end
-
-	db:del(set)
-end
-
 function utilities.remGroup(chat_id, full)
 
 	--remove group id
@@ -782,10 +756,6 @@ function utilities.remGroup(chat_id, full)
 			db:del('chat:'..chat_id..':'..config.chat_sets[i])
 		end
 
-		if db:exists('chat:'..chat_id..':mods') then
-			empty_modlist(chat_id)
-		end
-
 		db:del('lang:'..chat_id)
 	end
 end
@@ -793,25 +763,30 @@ end
 function utilities.getnames_complete(msg)
 	local admin, kicked
 
-	admin = utilities.getname_link(msg.from.first_name, msg.from.username)
-		or ("<code>%s</code>"):format(msg.from.first_name:escape_html())
+	admin = utilities.getname_link(msg.from)
 
 	if msg.reply then
-		kicked = utilities.getname_link(msg.reply.from.first_name, msg.reply.from.username)
-			or ("<code>%s</code>"):format(msg.reply.from.first_name:escape_html())
+		kicked = utilities.getname_link(msg.reply.from)
 	elseif msg.text:match(config.cmd..'%w%w%w%w?%w?%s(@[%w_]+)%s?') then
 		local username = msg.text:match('%s(@[%w_]+)')
 		kicked = username
 	elseif msg.mention_id then
 		for _, entity in pairs(msg.entities) do
 			if entity.user then
-				kicked = '<code>'..entity.user.first_name:escape_html()..'</code>'
+				kicked = utilities.getname_link(entity.user)
 			end
 		end
 	elseif msg.text:match(config.cmd..'%w%w%w%w?%w?%s(%d+)') then
 		local id = msg.text:match(config.cmd..'%w%w%w%w?%w?%s(%d+)')
-		kicked = '<code>'..id..'</code>'
+		local res = api.getChatMember(msg.chat.id, id)
+		if res then
+			kicked = utilities.getname_final(res.result.user)
+		end
 	end
+
+	-- TODO: Actually fix this
+	if not kicked then kicked = i18n("Someone") end
+	if not admin then admin = i18n("Someone") end
 
 	return admin, kicked
 end
@@ -819,7 +794,7 @@ end
 function utilities.get_user_id(msg, blocks)
 	--if no user id: returns false and the msg id of the translation for the problem
 	if not msg.reply and not blocks[2] then
-		return false, i18n("Reply to an user or mention him")
+		return false, i18n("Reply to an user or mention them")
 	else
 		if msg.reply then
 			if msg.reply.new_chat_member then
@@ -879,8 +854,6 @@ function utilities.logEvent(event, msg, extra)
 		--hammered?: hammered
 		text = ('#FLOOD\n• %s\n• <b>User</b>: %s'):format(chat_info, member)
 		if extra.hammered then text = text..('\n#%s'):format(extra.hammered:upper()) end
-	elseif event == 'cleanmods' then
-		text = i18n('%s\n• %s\n• <b>By</b>: %s'):format('#CLEAN_MODLIST', chat_info, extra.admin)
 	elseif event == 'new_chat_photo' then
 		text = i18n('%s\n• %s\n• <b>By</b>: %s'):format('#NEWPHOTO', chat_info, member)
 		reply_markup =
@@ -933,14 +906,6 @@ function utilities.logEvent(event, msg, extra)
 				'• <b>Warns found</b>: <i>normal: %s, for media: %s, spamwarns: %s</i>'
 			):format('WARNS_RESET', extra.admin, msg.from.id, chat_info, extra.user, tostring(extra.user_id), extra.rem.normal,
 			extra.rem.media, extra.rem.spam)
-		elseif event == 'promote' or event == 'demote' then
-			--PROMOTE OR DEMOTE
-			--admin name formatted: admin
-			--user name formatted: user
-			--user id: user_id
-			text = i18n(
-				'#%s\n• <b>Admin</b>: %s [#id%s]\n• %s\n• <b>Moderator</b>: %s [#id%s]'
-			):format(event:upper(), extra.admin, msg.from.id, chat_info, extra.user, tostring(extra.user_id))
 		elseif event == 'block' or event == 'unblock' then
 			text = i18n(
 				'#%s\n• <b>Admin</b>: %s [#id%s]\n• %s\n'
@@ -1034,6 +999,22 @@ function utilities.reportDeletedCommand(link)
 			api.sendReply(msg, i18n("This command has been removed \\[[read more](%s)]"):format(link), true)
 		end
 	end
+end
+
+function utilities.metric_incr(name)
+	db:incr("bot:metrics:" .. name)
+end
+
+function utilities.metric_set(name, value)
+	db:set("bot:metrics:" .. name, value)
+end
+
+function utilities.metric_get(name)
+	return db:get("bot:metrics:" .. name)
+end
+
+function utilities.time_hires()
+	return socket.gettime()
 end
 
 return utilities
